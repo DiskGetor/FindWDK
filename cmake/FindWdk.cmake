@@ -5,14 +5,14 @@
 # FindWDK
 # ----------
 #
-# This module searches for the installed Windows Development Kit (WDK) and 
+# This module searches for the installed Windows Development Kit (WDK) and
 # exposes commands for creating kernel drivers and kernel libraries.
 #
 # Output variables:
 # - `WDK_FOUND` -- if false, do not try to use WDK
 # - `WDK_ROOT` -- where WDK is installed
 # - `WDK_VERSION` -- the version of the selected WDK
-# - `WDK_WINVER` -- the WINVER used for kernel drivers and libraries 
+# - `WDK_WINVER` -- the WINVER used for kernel drivers and libraries
 #        (default value is `0x0601` and can be changed per target or globally)
 #
 # Example usage:
@@ -20,7 +20,7 @@
 #   find_package(WDK REQUIRED)
 #
 #   wdk_add_library(KmdfCppLib STATIC KMDF 1.15
-#       KmdfCppLib.h 
+#       KmdfCppLib.h
 #       KmdfCppLib.cpp
 #       )
 #   target_include_directories(KmdfCppLib INTERFACE .)
@@ -60,6 +60,7 @@ get_filename_component(WDK_ROOT ${WDK_ROOT} DIRECTORY)
 
 message(STATUS "WDK_ROOT: " ${WDK_ROOT})
 message(STATUS "WDK_VERSION: " ${WDK_VERSION})
+enable_language(ASM_MASM)
 
 set(WDK_WINVER "0x0601" CACHE STRING "Default WINVER for WDK targets")
 
@@ -67,6 +68,7 @@ set(WDK_ADDITIONAL_FLAGS_FILE "${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTOR
 file(WRITE ${WDK_ADDITIONAL_FLAGS_FILE} "#pragma runtime_checks(\"suc\", off)")
 
 set(WDK_COMPILE_FLAGS
+    "/Oi" # 内部函数
     "/Zp8" # set struct alignment
     "/GF"  # enable string pooling
     "/GR-" # disable RTTI
@@ -103,7 +105,7 @@ string(CONCAT WDK_LINK_FLAGS
     )
 
 # Generate imported targets for WDK lib files
-file(GLOB WDK_LIBRARIES "${WDK_ROOT}/Lib/${WDK_VERSION}/km/${WDK_PLATFORM}/*.lib")    
+file(GLOB WDK_LIBRARIES "${WDK_ROOT}/Lib/${WDK_VERSION}/km/${WDK_PLATFORM}/*.lib")
 foreach(LIBRARY IN LISTS WDK_LIBRARIES)
     get_filename_component(LIBRARY_NAME ${LIBRARY} NAME_WE)
     string(TOUPPER ${LIBRARY_NAME} LIBRARY_NAME)
@@ -144,15 +146,15 @@ function(wdk_add_driver _target)
             )
 
         if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-            set_property(TARGET ${_target} APPEND_STRING PROPERTY LINK_FLAGS "/ENTRY:FxDriverEntry@8")
+            set_property(TARGET ${_target} APPEND_STRING PROPERTY LINK_FLAGS "/ENTRY:DriverEntry@8")
         elseif(CMAKE_SIZEOF_VOID_P  EQUAL 8)
-            set_property(TARGET ${_target} APPEND_STRING PROPERTY LINK_FLAGS "/ENTRY:FxDriverEntry")
+            set_property(TARGET ${_target} APPEND_STRING PROPERTY LINK_FLAGS "/ENTRY:DriverEntry")
         endif()
     else()
         if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-            set_property(TARGET ${_target} APPEND_STRING PROPERTY LINK_FLAGS "/ENTRY:GsDriverEntry@8")
+            set_property(TARGET ${_target} APPEND_STRING PROPERTY LINK_FLAGS "/ENTRY:DriverEntry@8")
         elseif(CMAKE_SIZEOF_VOID_P  EQUAL 8)
-            set_property(TARGET ${_target} APPEND_STRING PROPERTY LINK_FLAGS "/ENTRY:GsDriverEntry")
+            set_property(TARGET ${_target} APPEND_STRING PROPERTY LINK_FLAGS "/ENTRY:DriverEntry")
         endif()
     endif()
 endfunction()
@@ -163,7 +165,7 @@ function(wdk_add_library _target)
     add_library(${_target} ${WDK_UNPARSED_ARGUMENTS})
 
     set_target_properties(${_target} PROPERTIES COMPILE_OPTIONS "${WDK_COMPILE_FLAGS}")
-    set_target_properties(${_target} PROPERTIES COMPILE_DEFINITIONS 
+    set_target_properties(${_target} PROPERTIES COMPILE_DEFINITIONS
         "${WDK_COMPILE_DEFINITIONS};$<$<CONFIG:Debug>:${WDK_COMPILE_DEFINITIONS_DEBUG};_WIN32_WINNT=${WDK_WINVER}>"
         )
 
